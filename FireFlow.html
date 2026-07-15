@@ -549,17 +549,17 @@
     <div class="pillar cost">
       <p class="pillar-kicker">Cost & scale</p>
       <p class="pillar-claim">Runner capacity tracks queue depth, not peak provisioning.</p>
-      <p class="pillar-detail">The runner fleet defaults to spot capacity and bin-packs jobs onto partially filled nodes. It scales toward zero when the queue is empty and toward peak capacity under load, rather than holding a fixed pool sized for the busiest hour of the week.</p>
+      <p class="pillar-detail">The runner fleet defaults to spot capacity and packs jobs onto partially filled nodes. It scales toward zero when the queue is empty and toward peak capacity under load, rather than holding a fixed pool sized for the busiest hour of the week.</p>
     </div>
     <div class="pillar sec">
       <p class="pillar-kicker">Security</p>
       <p class="pillar-claim">No artifact reaches production without verified provenance.</p>
-      <p class="pillar-detail">Commits are signature-verified at intake and dependencies are scanned per diff. Each build produces a signed artifact with a software bill of materials and a provenance attestation, and admission control re-checks that signature and attestation before an image is scheduled.</p>
+      <p class="pillar-detail">Commits are signature verified at intake and dependencies are scanned per diff. Each build produces a signed artifact with a software bill of materials and a provenance attestation, and admission control rechecks that signature and attestation before an image is scheduled.</p>
     </div>
     <div class="pillar risk">
       <p class="pillar-kicker">Quality & risk</p>
       <p class="pillar-claim">Verification effort is sized to predicted risk, not diff size.</p>
-      <p class="pillar-detail">Test selection, merge ordering, and rollout pacing are each driven by a risk score computed from blast radius and historical incident correlation for the files touched. A one-line documentation change and a change to a core payment path are not held to the same gate.</p>
+      <p class="pillar-detail">Test selection, merge ordering, and rollout pacing are each driven by a risk score computed from blast radius and historical incident correlation for the files touched. A single line documentation change and a change to a core payment path are not held to the same gate.</p>
     </div>
   </section>
 
@@ -632,7 +632,7 @@
   </main>
 
   <footer>
-    <strong>Reading this:</strong> flow runs left to right, stage by stage, same order the simulation replays. Copper connectors are the default control-flow. A violet chip is a model making a prediction; a teal chip is a gate that blocks the pipeline outright if it fails. Lead time for changes, above, is calculated live from this timeline; the other three delivery performance figures are stated design targets for this architecture, not measured production data.
+    <strong>Reading this:</strong> flow runs left to right, stage by stage, same order the simulation replays. Copper connectors are the default control flow. A violet chip is a model making a prediction; a teal chip is a gate that blocks the pipeline outright if it fails. Lead time for changes, above, is calculated live from this timeline; the other three delivery performance figures are stated design targets for this architecture, not measured production data.
   </footer>
 
 </div>
@@ -655,57 +655,57 @@
     { id: "commitsig", lane: "trigger", title: "Commit Signature Verification", badge: "sec", t: 2, cost: 0.00001,
       blurb: "Rejects unsigned commits before a single job is scheduled.",
       detail: "Every commit must carry a signature GitHub can mark as verified, checked the moment the webhook lands, not after the fact. An unverified commit never reaches a runner — the audit trail for who wrote this starts at the first byte, not at merge time." },
-    { id: "classifier", lane: "trigger", title: "Change-Impact Classifier", badge: "ai", t: 5, cost: 0.00015,
+    { id: "classifier", lane: "trigger", title: "Change Impact Classifier", badge: "ai", t: 5, cost: 0.00015,
       blurb: "Maps the diff onto the dependency graph before deciding what to run.",
-      detail: "AI touchpoint — trained on the repository's dependency graph plus historical co-change data, this model predicts which of the roughly 640 packages are actually reachable from this diff. A one-line fix to a shared utility stops triggering a full-repository rebuild; a change to a core package doesn't slip through under-tested because it \"looked small\"." },
+      detail: "AI touchpoint — trained on the repository's dependency graph plus historical data on which files tend to change together, this model predicts which of the roughly 640 packages are actually reachable from this diff. A single line fix to a shared utility stops triggering a full repository rebuild; a change to a core package doesn't slip through without adequate testing because it \"looked small\"." },
 
     { id: "lint", lane: "fastfeedback", title: "Lint & Code Scanning", badge: null, t: 20, cost: 0.00040,
       blurb: "Style, type, and correctness checks, parallelized per file.",
       detail: "Starts the moment the event lands, independent of the build. Findings from the linters and from GitHub's code scanning post as inline annotations on the pull request at the exact line — not a log dump someone has to go spelunking through to find the one thing that matters." },
     { id: "secretscan", lane: "fastfeedback", title: "Secret Scanning & Dependency Alerts", badge: "sec", t: 26, cost: 0.00035,
-      blurb: "Scans only the diff for live credentials and newly-introduced vulnerabilities.",
-      detail: "GitHub's secret scanning checks the diff for live credentials, and a dependency alert checks just the packages this diff adds or bumps against their known vulnerability records — not a slow whole-tree sweep on every push. A live credential or a critical, fixable vulnerability blocks the required check outright; anything softer opens a tracked alert with an owner and a deadline instead of silently passing." },
+      blurb: "Scans only the diff for live credentials and newly introduced vulnerabilities.",
+      detail: "GitHub's secret scanning checks the diff for live credentials, and a dependency alert checks just the packages this diff adds or bumps against their known vulnerability records — not a slow sweep of the whole tree on every push. A live credential or a critical, fixable vulnerability blocks the required check outright; anything softer opens a tracked alert with an owner and a deadline instead of silently passing." },
     { id: "unit", lane: "fastfeedback", title: "Unit Test Shard Runner", badge: null, t: 75, cost: 0.00180,
       blurb: "Runs only the tests the impact classifier marked as reachable.",
-      detail: "Sharded across whatever runner capacity is free right now, so wall-clock time for this stage stays roughly flat as the codebase grows — it's bounded by the reachable slice of tests, not the whole suite." },
+      detail: "Sharded across whatever runner capacity is free right now, so wall clock time for this stage stays roughly flat as the codebase grows — it's bounded by the reachable slice of tests, not the whole suite." },
     { id: "review", lane: "fastfeedback", title: "AI Code Review", badge: "ai", t: 80, cost: 0.00060,
       blurb: "Drafts inline comments before a human opens the diff.",
-      detail: "AI touchpoint — an automated review pass over the diff flags likely null-deref bugs, missing edge-case tests, and style drift as suggested-change comments on the pull request itself. This narrows what a human has to read; it does not replace a human's review. See Required Reviewer Approval below." },
+      detail: "AI touchpoint — an automated review pass over the diff flags likely null reference bugs, missing edge case tests, and style drift as suggested change comments on the pull request itself. This narrows what a human has to read; it does not replace a human's review. See Required Reviewer Approval below." },
     { id: "humanreview", lane: "fastfeedback", title: "Required Reviewer Approval", badge: null, t: 85, cost: 0.00000,
       blurb: "A human maintainer still has to approve before this moves on.",
-      detail: "The repository's code owners file resolves which team or person owns the paths this diff touches, and at least one of them has to submit an approving human review. This is enforced separately from the AI code review pass above — the automation narrows what the reviewer has to read and catches the obvious issues first, but a person's sign-off is still required and cannot be skipped." },
-    { id: "flaky", lane: "fastfeedback", title: "Flaky-Test Quarantine", badge: "ai", t: 95, cost: 0.00020,
+      detail: "The repository's code owners file resolves which team or person owns the paths this diff touches, and at least one of them has to submit an approving human review. This is enforced separately from the AI code review pass above — the automation narrows what the reviewer has to read and catches the obvious issues first, but a person's approval is still required and cannot be skipped." },
+    { id: "flaky", lane: "fastfeedback", title: "Flaky Test Quarantine", badge: "ai", t: 95, cost: 0.00020,
       blurb: "Pulls statistically unstable tests out of the blocking path automatically.",
-      detail: "AI touchpoint — a rolling model of each test's pass/fail history flags flaky tests and quarantines them out of the merge-blocking path, without deleting the coverage. They keep running and get tracked; the owning team is paged once a confidence threshold is crossed — instead of the whole organization quietly losing trust in a red build." },
+      detail: "AI touchpoint — a rolling model of each test's pass/fail history flags flaky tests and quarantines them out of the path that blocks merges, without deleting the coverage. They keep running and get tracked; the owning team is paged once a confidence threshold is crossed — instead of the whole organization quietly losing trust in a red build." },
 
     { id: "scheduler", lane: "scaled", title: "Job Scheduler", badge: null, t: 100, cost: 0.00005,
-      blurb: "Bin-packs jobs onto partially-filled nodes instead of always requesting fresh ones.",
-      detail: "Orders queued jobs by priority — pull-request-gating work ahead of nightly batch jobs — and packs small jobs onto nodes that already have spare capacity rather than provisioning a new one per job. Fleet utilization stays high instead of paying for headroom nobody's using." },
-    { id: "runners", lane: "scaled", title: "Self-Hosted Runner Fleet", badge: null, t: 105, cost: 0.00120,
+      blurb: "Packs jobs onto partially filled nodes instead of always requesting fresh ones.",
+      detail: "Orders queued jobs by priority — work that gates a pull request ahead of nightly batch jobs — and packs small jobs onto nodes that already have spare capacity rather than provisioning a new one per job. Fleet utilization stays high instead of paying for headroom nobody's using." },
+    { id: "runners", lane: "scaled", title: "Self Hosted Runner Fleet", badge: null, t: 105, cost: 0.00120,
       blurb: "Autoscaling, and priced like it — spot capacity by default.",
-      detail: "Self-hosted GitHub Actions runners, provisioned on Kubernetes as an autoscaling runner set that defaults to spot capacity, falling back to on-demand only when spot is reclaimed mid-job. The fleet scales toward zero at three in the morning and toward thousands of ephemeral, single-job runners at peak push hours — cost tracks actual queue depth, not a provisioned baseline sized for the worst hour of the week." },
+      detail: "Self hosted GitHub Actions runners, provisioned on Kubernetes as an autoscaling runner set that defaults to spot capacity, falling back to on demand capacity only when spot is reclaimed partway through a job. The fleet scales toward zero at three in the morning and toward thousands of ephemeral, single job runners at peak push hours — cost tracks actual queue depth, not a provisioned baseline sized for the worst hour of the week." },
     { id: "cache", lane: "scaled", title: "Remote Build Cache", badge: null, t: 115, cost: 0.00010,
-      blurb: "Content-addressed, shared across every runner in the fleet.",
-      detail: "Build outputs are keyed by input hash and shared fleet-wide, well beyond the size limit of GitHub's built-in Actions cache, so a package nobody touched is never rebuilt twice on two different runners. This is the difference between a full clean build and the actual default experience." },
+      blurb: "Content addressed, shared across every runner in the fleet.",
+      detail: "Build outputs are keyed by input hash and shared across the whole fleet, well beyond the size limit of GitHub's own Actions cache, so a package nobody touched is never rebuilt twice on two different runners. This is the difference between a full clean build and the actual default experience." },
     { id: "testselect", lane: "scaled", title: "Test Impact Selector", badge: "ai", t: 125, cost: 0.00040,
       blurb: "Ranks regression tests by how likely they are to catch this diff's bug.",
       detail: "AI touchpoint — instead of the full regression suite on every build, a model ranks tests by historical likelihood of catching a regression in this diff's changed files. The top slice runs on the critical path; the rest runs asynchronously. Full coverage still happens — it's just not what the developer is sitting there waiting on." },
     { id: "sbom", lane: "scaled", title: "Software Bill of Materials Export", badge: "sec", t: 300, cost: 0.00025,
       blurb: "Documents everything in the built artifact, not just the source tree.",
-      detail: "Every build exports a software bill of materials from the dependency graph, keyed to the exact artifact hash — including anything pulled in during the build, not just what's declared in the manifest. It ships alongside the artifact, so \"what's actually running in production\" is a query against this, not a fire-drill audit." },
+      detail: "Every build exports a software bill of materials from the dependency graph, keyed to the exact artifact hash — including anything pulled in during the build, not just what's declared in the manifest. It ships alongside the artifact, so \"what's actually running in production\" is a query against this, not a fire drill audit." },
 
     { id: "unifiedcheck", lane: "mergequeue", title: "Required Status Check", badge: null, t: 310, cost: 0.00000,
       blurb: "Everything above rolls into exactly one required status.",
-      detail: "A single job depends on every fast-feedback and scaled-build job before it — lint, tests, both scans, the reviewer approval, both AI passes — and reports one combined result. That combined job is the only status the branch ruleset actually requires. A developer never reads forty separate check names to know if they're blocked; a failure links straight through to the one job that's actually failing." },
+      detail: "A single job depends on every fast feedback and scaled build job before it — lint, tests, both scans, the reviewer approval, both AI passes — and reports one combined result. That combined job is the only status the branch ruleset actually requires. A developer never reads forty separate check names to know if they're blocked; a failure links straight through to the one job that's actually failing." },
     { id: "mergequeuecontroller", lane: "mergequeue", title: "Merge Queue", badge: null, t: 390, cost: 0.00010,
-      blurb: "Re-tests each pull request against the current tip of the main branch before landing.",
-      detail: "GitHub's merge queue re-runs required checks against a pull request merged with the current tip of the main branch, one at a time — so two individually passing pull requests can't combine into a broken main branch." },
+      blurb: "Retests each pull request against the current tip of the main branch before landing.",
+      detail: "GitHub's merge queue reruns required checks against a pull request merged with the current tip of the main branch, one at a time — so two individually passing pull requests can't combine into a broken main branch." },
     { id: "policygate", lane: "mergequeue", title: "Ruleset Policy Gate", badge: "sec", t: 396, cost: 0.00002,
-      blurb: "The review rules live in repository configuration, not a settings page click-through.",
-      detail: "Before a pull request enters the merge queue, the repository's ruleset evaluates it against rules stored as configuration: required approvals resolved from the code owners file, no self-merge, no direct pushes to protected paths. The rules are version-controlled and applied identically to everyone with push access, including whoever wrote them." },
+      blurb: "The review rules live in repository configuration, not something you click through on a settings page.",
+      detail: "Before a pull request enters the merge queue, the repository's ruleset evaluates it against rules stored as configuration: required approvals resolved from the code owners file, no merging your own pull request, no direct pushes to protected paths. The rules are version controlled and applied identically to everyone with push access, including whoever wrote them." },
     { id: "riskscore", lane: "mergequeue", title: "Merge Risk Scorer", badge: "ai", t: 405, cost: 0.00015,
       blurb: "Ranks queue order by predicted blast radius, not arrival time.",
-      detail: "AI touchpoint — scores each queued pull request on diff size, blast radius, and historical incident correlation for the files it touches. A one-line documentation fix doesn't sit behind a risky infrastructure change in a strictly serial queue; low-risk merges get prioritized through." },
+      detail: "AI touchpoint — scores each queued pull request on diff size, blast radius, and historical incident correlation for the files it touches. A single line documentation fix doesn't sit behind a risky infrastructure change in a strictly serial queue; low risk merges get prioritized through." },
 
     { id: "artifactbuild", lane: "release", title: "Artifact & Image Build", badge: null, t: 470, cost: 0.00090,
       blurb: "Built exactly once from the merged commit.",
@@ -725,13 +725,13 @@
       detail: "The cluster's admission controller checks the image's signature and its build provenance attestation at every pod start, not just at deploy time on trust. An image that's unsigned, unattested, or fails the vulnerability policy from its software bill of materials is refused a scheduling slot — full stop, no exceptions queue." },
     { id: "dashboard", lane: "observability", title: "Pipeline Metrics Dashboard", badge: null, t: 1140, cost: 0.00002,
       blurb: "The operational read on the system, not any one run.",
-      detail: "Build times, queue depth, failure rates, fleet utilization, spot-eviction rate. This is what the platform team watches to know if the fleet is keeping up — not something any individual developer needs to open." },
+      detail: "Build times, queue depth, failure rates, fleet utilization, spot eviction rate. This is what the platform team watches to know if the fleet is keeping up — not something any individual developer needs to open." },
     { id: "triage", lane: "observability", title: "Failure Triage Bot", badge: "ai", t: 1145, cost: 0.00025,
       blurb: "Suggests a root cause the moment a build goes red.",
-      detail: "AI touchpoint — clusters a new failure's stack trace and logs against a history of past incidents, then posts a likely root cause and a probable owning team directly on the pull request or in the on-call channel. This run stayed green, so the bot stays on standby — but it's evaluating every failure that does happen, not just the ones a human has time to dig into." },
+      detail: "AI touchpoint — clusters a new failure's stack trace and logs against a history of past incidents, then posts a likely root cause and a probable owning team directly on the pull request or in the on call channel. This run stayed green, so the bot stays on standby — but it's evaluating every failure that does happen, not just the ones a human has time to dig into." },
     { id: "digest", lane: "observability", title: "Smoke Signal", badge: "ai", t: 1150, cost: 0.00010,
-      blurb: "A plain-language pulse on the week, not a dashboard nobody opens.",
-      detail: "AI touchpoint — auto-generates a short, plain-language summary of what shipped, what broke, and which tests are newly flaky, so a team gets a weekly read on pipeline health without anyone digging through dashboards to compile it by hand." }
+      blurb: "A plain language pulse on the week, not a dashboard nobody opens.",
+      detail: "AI touchpoint — automatically generates a short, plain language summary of what shipped, what broke, and which tests are newly flaky, so a team gets a weekly read on pipeline health without anyone digging through dashboards to compile it by hand." }
   ];
 
   var flowEl = document.getElementById("flow");
