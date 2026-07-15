@@ -1,0 +1,914 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FireFlow — source to production, replayed</title>
+<style>
+  :root {
+    --bg: #EEF1F1;
+    --surface: #FFFFFF;
+    --surface-2: #F5F8F8;
+    --border: #D4DBDB;
+    --border-strong: #B9C4C4;
+    --text: #172022;
+    --text-dim: #5C6E70;
+    --accent: #C4701F;
+    --accent-ink: #FFFFFF;
+    --accent-soft: #F4E4CE;
+    --ai: #6C5CC7;
+    --ai-soft: #EBE7F8;
+    --sec: #1E8A82;
+    --sec-soft: #DFF1EE;
+    --pass: #2F8F5B;
+    --pass-soft: #E1F1E8;
+    --fail: #C24A40;
+    --pending: #A9821F;
+    --pending-soft: #F3EAD1;
+    --shadow: 0 1px 2px rgba(20, 30, 32, 0.06), 0 8px 24px rgba(20, 30, 32, 0.05);
+    --font-mono: "Cascadia Code", "Cascadia Mono", Consolas, "SF Mono", "JetBrains Mono", ui-monospace, monospace;
+    --font-sans: "Segoe UI", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0D1214;
+      --surface: #161D1F;
+      --surface-2: #1D2528;
+      --border: #2B3639;
+      --border-strong: #3B484B;
+      --text: #E7EDEE;
+      --text-dim: #8FA0A3;
+      --accent: #E8934A;
+      --accent-ink: #1A1206;
+      --accent-soft: #362413;
+      --ai: #A392E8;
+      --ai-soft: #29234A;
+      --sec: #4FC4BA;
+      --sec-soft: #163330;
+      --pass: #5FB58A;
+      --pass-soft: #14261D;
+      --fail: #E08079;
+      --pending: #D9B968;
+      --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 12px 32px rgba(0, 0, 0, 0.35);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0D1214;
+    --surface: #161D1F;
+    --surface-2: #1D2528;
+    --border: #2B3639;
+    --border-strong: #3B484B;
+    --text: #E7EDEE;
+    --text-dim: #8FA0A3;
+    --accent: #E8934A;
+    --accent-ink: #1A1206;
+    --accent-soft: #362413;
+    --ai: #A392E8;
+    --ai-soft: #29234A;
+    --sec: #4FC4BA;
+    --sec-soft: #163330;
+    --pass: #5FB58A;
+    --pass-soft: #14261D;
+    --fail: #E08079;
+    --pending: #D9B968;
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 12px 32px rgba(0, 0, 0, 0.35);
+  }
+  :root[data-theme="light"] {
+    --bg: #EEF1F1;
+    --surface: #FFFFFF;
+    --surface-2: #F5F8F8;
+    --border: #D4DBDB;
+    --border-strong: #B9C4C4;
+    --text: #172022;
+    --text-dim: #5C6E70;
+    --accent: #C4701F;
+    --accent-ink: #FFFFFF;
+    --accent-soft: #F4E4CE;
+    --ai: #6C5CC7;
+    --ai-soft: #EBE7F8;
+    --sec: #1E8A82;
+    --sec-soft: #DFF1EE;
+    --pass: #2F8F5B;
+    --pass-soft: #E1F1E8;
+    --fail: #C24A40;
+    --pending: #A9821F;
+    --shadow: 0 1px 2px rgba(20, 30, 32, 0.06), 0 8px 24px rgba(20, 30, 32, 0.05);
+  }
+
+  * { box-sizing: border-box; }
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; animation: none !important; }
+  }
+
+  html, body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-sans);
+    margin: 0;
+    padding: 0;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .page {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 3rem 1.5rem 4rem;
+    display: flex;
+    flex-direction: column;
+    gap: 2.5rem;
+  }
+
+  /* ---------- Masthead ---------- */
+  .masthead { display: flex; flex-direction: column; gap: 0.9rem; max-width: 70ch; }
+  .eyebrow {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 0;
+    font-weight: 600;
+  }
+  h1 {
+    font-family: var(--font-mono);
+    font-weight: 600;
+    font-size: clamp(2.1rem, 4.4vw, 3.1rem);
+    letter-spacing: -0.01em;
+    margin: 0;
+    text-wrap: balance;
+    color: var(--text);
+  }
+  .dek {
+    font-size: 1.02rem;
+    line-height: 1.65;
+    color: var(--text-dim);
+    margin: 0;
+    max-width: 66ch;
+  }
+  .dek strong { color: var(--text); font-weight: 600; }
+
+  /* ---------- Pillars ---------- */
+  .pillars {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1rem;
+  }
+  @media (max-width: 980px) {
+    .pillars { grid-template-columns: repeat(2, 1fr); }
+  }
+  @media (max-width: 560px) {
+    .pillars { grid-template-columns: 1fr; }
+  }
+  .pillar {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--pillar-color, var(--accent));
+    border-radius: 8px;
+    padding: 1rem 1.1rem 1.15rem;
+    box-shadow: var(--shadow);
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+  }
+  .pillar.load { --pillar-color: var(--accent); }
+  .pillar.cost { --pillar-color: var(--pass); }
+  .pillar.sec { --pillar-color: var(--sec); }
+  .pillar.risk { --pillar-color: var(--pending); }
+  .pillar-kicker {
+    font-family: var(--font-mono);
+    font-size: 0.66rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--pillar-color, var(--accent));
+    font-weight: 600;
+    margin: 0;
+  }
+  .pillar-claim { font-size: 0.98rem; font-weight: 700; margin: 0; line-height: 1.35; }
+  .pillar-detail { font-size: 0.82rem; line-height: 1.55; color: var(--text-dim); margin: 0; }
+
+  /* ---------- Section labels ---------- */
+  .section-label {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin: 0 0 0.7rem 0;
+    font-weight: 600;
+  }
+  .section-note {
+    font-size: 0.86rem;
+    line-height: 1.6;
+    color: var(--text-dim);
+    max-width: 68ch;
+    margin: -0.35rem 0 1.1rem 0;
+  }
+
+  /* ---------- Delivery performance metrics ---------- */
+  .dora {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1rem;
+  }
+  @media (max-width: 980px) { .dora { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 560px) { .dora { grid-template-columns: 1fr; } }
+  .dora-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1rem 1.1rem 1.15rem;
+    box-shadow: var(--shadow);
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+  }
+  .dora-name {
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin: 0;
+  }
+  .dora-value {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--text);
+    margin: 0;
+  }
+  .dora-benchmark { font-size: 0.76rem; color: var(--text-dim); margin: 0; }
+  .dora-pill {
+    align-self: flex-start;
+    font-family: var(--font-mono);
+    font-size: 0.62rem;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    padding: 0.18rem 0.5rem;
+    border-radius: 999px;
+    font-weight: 600;
+  }
+  .dora-pill.computed { background: var(--pass-soft); color: var(--pass); }
+  .dora-pill.target { background: var(--pending-soft); color: var(--pending); }
+
+  /* ---------- Console: run control + live readout ---------- */
+  .console {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 1.1rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1rem 1.2rem;
+    box-shadow: var(--shadow);
+  }
+  button#run-sim {
+    font-family: var(--font-mono);
+    font-size: 0.86rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    background: var(--accent);
+    color: var(--accent-ink);
+    border: 1px solid var(--accent);
+    border-radius: 6px;
+    padding: 0.65rem 1.1rem;
+    cursor: pointer;
+    transition: opacity 120ms ease, transform 120ms ease;
+    flex: none;
+  }
+  button#run-sim:hover:not(:disabled) { opacity: 0.88; }
+  button#run-sim:active:not(:disabled) { transform: translateY(1px); }
+  button#run-sim:disabled { cursor: default; opacity: 0.75; }
+  button#run-sim:focus-visible { outline: 2px solid var(--sec); outline-offset: 2px; }
+
+  .readout {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.6rem;
+    flex: 1;
+    min-width: 260px;
+  }
+  .readout-item { display: flex; flex-direction: column; gap: 0.15rem; }
+  .readout-value {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text);
+  }
+  .readout-value.status-live { color: var(--pass); }
+  .readout-label {
+    font-size: 0.64rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+  }
+
+  .progress-track {
+    width: 100%;
+    height: 4px;
+    background: var(--surface-2);
+    border-radius: 2px;
+    overflow: hidden;
+    order: 10;
+  }
+  .progress-fill {
+    height: 100%;
+    width: 0%;
+    background: var(--accent);
+    border-radius: 2px;
+    transition: width 180ms linear;
+  }
+
+  /* ---------- Trace strip ---------- */
+  .trace { display: flex; flex-direction: column; }
+  .trace-scroll { overflow-x: auto; padding-bottom: 0.4rem; }
+  .trace-strip {
+    display: flex;
+    align-items: stretch;
+    gap: 0.55rem;
+    width: max-content;
+  }
+  .chip {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 0.5rem 0.65rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    min-width: 120px;
+    box-shadow: var(--shadow);
+    opacity: 0.4;
+    transition: opacity 160ms ease, border-color 160ms ease;
+  }
+  .chip.done { opacity: 1; }
+  .chip.active { opacity: 1; border-color: var(--pillar-color, var(--accent)); }
+  .chip-status { display: flex; align-items: center; gap: 0.4rem; color: var(--text-dim); font-size: 0.64rem; letter-spacing: 0.03em; text-transform: uppercase; }
+  .dot { width: 7px; height: 7px; border-radius: 50%; flex: none; background: var(--border-strong); }
+  .chip.done .dot { background: var(--pass); }
+  .chip.done.sec .dot { background: var(--sec); }
+  .chip-label { color: var(--text); font-weight: 600; font-size: 0.76rem; }
+  .chip-time { color: var(--text-dim); font-variant-numeric: tabular-nums; }
+  .trace-arrow { align-self: center; color: var(--border-strong); font-size: 0.9rem; flex: none; }
+
+  /* ---------- Legend / controls ---------- */
+  .controls {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    border-top: 1px dashed var(--border);
+    padding-top: 1.1rem;
+  }
+  .legend-keys { display: flex; gap: 1.3rem; flex-wrap: wrap; }
+  .key { display: flex; align-items: center; gap: 0.5rem; font-size: 0.8rem; color: var(--text-dim); }
+  .key .swatch { width: 14px; height: 3px; border-radius: 2px; background: var(--accent); }
+  .key .swatch.ai { background: var(--ai); width: 10px; height: 10px; border-radius: 50%; }
+  .key .swatch.sec { background: var(--sec); width: 10px; height: 10px; border-radius: 50%; }
+
+  button#filter-toggle {
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    letter-spacing: 0.02em;
+    background: var(--surface);
+    color: var(--text);
+    border: 1px solid var(--border-strong);
+    border-radius: 6px;
+    padding: 0.55rem 0.9rem;
+    cursor: pointer;
+    transition: background 120ms ease, border-color 120ms ease, color 120ms ease;
+  }
+  button#filter-toggle:hover { border-color: var(--ai); color: var(--ai); }
+  button#filter-toggle.active {
+    background: var(--ai-soft);
+    border-color: var(--ai);
+    color: var(--ai);
+  }
+  button#filter-toggle:focus-visible,
+  .node:focus-visible,
+  .chip:focus-visible {
+    outline: 2px solid var(--ai);
+    outline-offset: 2px;
+  }
+
+  /* ---------- Workspace: flow + detail ---------- */
+  .workspace {
+    display: grid;
+    grid-template-columns: 1fr 340px;
+    gap: 1.5rem;
+    align-items: start;
+  }
+  @media (max-width: 880px) {
+    .workspace { grid-template-columns: 1fr; }
+  }
+
+  .flow-scroll { overflow-x: auto; padding: 0.4rem 0.2rem 1rem; }
+  .flow {
+    display: flex;
+    gap: 2.1rem;
+    width: max-content;
+  }
+
+  .lane {
+    width: 216px;
+    flex: none;
+    position: relative;
+  }
+  .lane:not(:last-child)::after {
+    content: "";
+    position: absolute;
+    top: 27px;
+    right: -1.7rem;
+    width: 1.7rem;
+    height: 2px;
+    background: var(--accent);
+    opacity: 0.55;
+  }
+  .lane:not(:last-child)::before {
+    content: "";
+    position: absolute;
+    top: 22px;
+    right: calc(-1.7rem - 1px);
+    width: 0;
+    height: 0;
+    border-top: 5px solid transparent;
+    border-bottom: 5px solid transparent;
+    border-left: 6px solid var(--accent);
+    opacity: 0.55;
+  }
+
+  .lane-header { min-height: 54px; margin-bottom: 0.9rem; }
+  .lane-name {
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--text);
+    margin: 0 0 0.25rem 0;
+  }
+  .lane-blurb { font-size: 0.74rem; color: var(--text-dim); line-height: 1.4; margin: 0; }
+
+  .lane-nodes { display: flex; flex-direction: column; gap: 0.6rem; }
+
+  .node {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0.7rem 0.8rem;
+    text-align: left;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    box-shadow: var(--shadow);
+    transition: border-color 120ms ease, background 120ms ease, opacity 150ms ease, box-shadow 120ms ease;
+    font-family: inherit;
+    color: inherit;
+  }
+  .node:hover { border-color: var(--border-strong); }
+  .node.selected { border-color: var(--accent); background: var(--accent-soft); }
+  .node.ai.selected { border-color: var(--ai); background: var(--ai-soft); }
+  .node.sec.selected { border-color: var(--sec); background: var(--sec-soft); }
+  .node.sim-active { border-color: var(--pass); box-shadow: 0 0 0 3px var(--pass-soft); }
+  .node-title { font-size: 0.86rem; font-weight: 600; display: flex; align-items: center; gap: 0.4rem; }
+  .node-blurb { font-size: 0.76rem; color: var(--text-dim); line-height: 1.4; }
+  .badge {
+    font-family: var(--font-mono);
+    font-size: 0.6rem;
+    letter-spacing: 0.04em;
+    border-radius: 4px;
+    padding: 0.12rem 0.36rem;
+    flex: none;
+  }
+  .badge.ai { color: var(--ai); background: var(--ai-soft); }
+  .badge.sec { color: var(--sec); background: var(--sec-soft); }
+
+  .dimmed { opacity: 0.32; }
+
+  /* ---------- Detail panel ---------- */
+  .detail {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1.3rem 1.3rem 1.5rem;
+    position: sticky;
+    top: 1.5rem;
+    min-height: 320px;
+    display: flex;
+    flex-direction: column;
+    gap: 0.7rem;
+    box-shadow: var(--shadow);
+  }
+  .detail-kind {
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+  }
+  .detail-kind.ai { color: var(--ai); }
+  .detail-kind.sec { color: var(--sec); }
+  .detail-title { font-size: 1.2rem; font-weight: 700; margin: 0; text-wrap: balance; }
+  .detail-lane { font-size: 0.76rem; color: var(--text-dim); }
+  .detail-body { font-size: 0.92rem; line-height: 1.62; color: var(--text); }
+  .detail-empty { color: var(--text-dim); font-size: 0.88rem; line-height: 1.6; }
+
+  footer {
+    border-top: 1px solid var(--border);
+    padding-top: 1.2rem;
+    font-size: 0.78rem;
+    color: var(--text-dim);
+    line-height: 1.6;
+  }
+  footer strong { color: var(--text); }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <header class="masthead">
+    <p class="eyebrow">Source → production · replayable simulation</p>
+    <h1>FireFlow</h1>
+    <p class="dek">One pull request's actual trip through a CI system built against four constraints that usually trade off against each other: <strong>a developer reads one signal, not forty</strong>; <strong>the fleet costs what the queue needs, not a provisioned peak</strong>; <strong>nothing unsigned, unscanned, or unattested reaches production</strong>; and <strong>verification effort is sized to risk, not applied uniformly</strong>. Press run below and watch a real commit make the trip, gate by gate.</p>
+  </header>
+
+  <section class="pillars">
+    <div class="pillar load">
+      <p class="pillar-kicker">Cognitive load</p>
+      <p class="pillar-claim">A single required status per pull request.</p>
+      <p class="pillar-detail">Lint, test, and scan results aggregate into one status check. On failure, the check links directly to the specific failing stage and log line, rather than surfacing a list of independent checks for the developer to triage manually.</p>
+    </div>
+    <div class="pillar cost">
+      <p class="pillar-kicker">Cost & scale</p>
+      <p class="pillar-claim">Runner capacity tracks queue depth, not peak provisioning.</p>
+      <p class="pillar-detail">The runner fleet defaults to spot capacity and bin-packs jobs onto partially filled nodes. It scales toward zero when the queue is empty and toward peak capacity under load, rather than holding a fixed pool sized for the busiest hour of the week.</p>
+    </div>
+    <div class="pillar sec">
+      <p class="pillar-kicker">Security</p>
+      <p class="pillar-claim">No artifact reaches production without verified provenance.</p>
+      <p class="pillar-detail">Commits are signature-verified at intake and dependencies are scanned per diff. Each build produces a signed artifact with a software bill of materials and a provenance attestation, and admission control re-checks that signature and attestation before an image is scheduled.</p>
+    </div>
+    <div class="pillar risk">
+      <p class="pillar-kicker">Quality & risk</p>
+      <p class="pillar-claim">Verification effort is sized to predicted risk, not diff size.</p>
+      <p class="pillar-detail">Test selection, merge ordering, and rollout pacing are each driven by a risk score computed from blast radius and historical incident correlation for the files touched. A one-line documentation change and a change to a core payment path are not held to the same gate.</p>
+    </div>
+  </section>
+
+  <section class="dora-section">
+    <p class="section-label">Delivery performance — the four keys from Google's DevOps Research and Assessment program</p>
+    <p class="section-note">This is the standard industry framework for measuring software delivery performance, not a metric invented for this page. Three figures below are the design targets this architecture is built to hit, benchmarked against the program's published highest performance tier. The fourth, lead time for changes, is calculated live from the simulation timeline below it.</p>
+    <div class="dora" role="list">
+      <div class="dora-card" role="listitem">
+        <p class="dora-name">Deployment frequency</p>
+        <p class="dora-value">Multiple per day, on demand</p>
+        <p class="dora-benchmark">Highest performance tier definition</p>
+        <span class="dora-pill target">Design target</span>
+      </div>
+      <div class="dora-card" role="listitem">
+        <p class="dora-name">Lead time for changes</p>
+        <p class="dora-value" id="dora-leadtime">—</p>
+        <p class="dora-benchmark">Highest performance tier: under one hour</p>
+        <span class="dora-pill computed">Computed from this simulation</span>
+      </div>
+      <div class="dora-card" role="listitem">
+        <p class="dora-name">Change failure rate</p>
+        <p class="dora-value">Zero to fifteen percent</p>
+        <p class="dora-benchmark">Highest performance tier definition</p>
+        <span class="dora-pill target">Design target</span>
+      </div>
+      <div class="dora-card" role="listitem">
+        <p class="dora-name">Time to restore service</p>
+        <p class="dora-value">Under one hour</p>
+        <p class="dora-benchmark">Highest performance tier definition</p>
+        <span class="dora-pill target">Design target</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="trace">
+    <p class="section-label">One pull request's trip through the system</p>
+
+    <div class="console">
+      <button id="run-sim" type="button">Run simulation</button>
+      <div class="readout" aria-live="off">
+        <div class="readout-item"><span class="readout-value" id="ro-status">Idle</span><span class="readout-label">Status</span></div>
+        <div class="readout-item"><span class="readout-value" id="ro-elapsed">0:00</span><span class="readout-label">Elapsed (simulated)</span></div>
+        <div class="readout-item"><span class="readout-value" id="ro-cost">$0.00000</span><span class="readout-label">Cost so far</span></div>
+        <div class="readout-item"><span class="readout-value" id="ro-gates">0 / 6</span><span class="readout-label">Security gates passed</span></div>
+      </div>
+      <div class="progress-track"><div class="progress-fill" id="progress-fill"></div></div>
+    </div>
+
+    <div class="trace-scroll">
+      <div class="trace-strip" id="trace"></div>
+    </div>
+  </section>
+
+  <div class="controls">
+    <div class="legend-keys">
+      <span class="key"><span class="swatch"></span> pipeline flow</span>
+      <span class="key"><span class="swatch ai"></span> AI touchpoint</span>
+      <span class="key"><span class="swatch sec"></span> security gate</span>
+    </div>
+    <button id="filter-toggle" type="button" aria-pressed="false">Show AI touchpoints only</button>
+  </div>
+
+  <main class="workspace">
+    <div class="flow-scroll">
+      <div class="flow" id="flow"></div>
+    </div>
+    <aside class="detail" id="detail">
+      <p class="detail-empty">Select any node to see what it does — click a violet <strong>AI</strong> badge for the exact prediction being made, or a teal <strong>SEC</strong> badge for the exact thing being verified before this pull request is allowed to move on.</p>
+    </aside>
+  </main>
+
+  <footer>
+    <strong>Reading this:</strong> flow runs left to right, stage by stage, same order the simulation replays. Copper connectors are the default control-flow. A violet chip is a model making a prediction; a teal chip is a gate that blocks the pipeline outright if it fails. Lead time for changes, above, is calculated live from this timeline; the other three delivery performance figures are stated design targets for this architecture, not measured production data.
+  </footer>
+
+</div>
+
+<script>
+(function () {
+  var lanes = [
+    { id: "trigger", name: "Trigger & Intake", blurb: "A push lands and proves who sent it before anything else runs." },
+    { id: "fastfeedback", name: "Fast Feedback", blurb: "Every push, under ten minutes: signal a developer can act on now." },
+    { id: "scaled", name: "Scaled Build & Test", blurb: "The heavy work, priced like the heavy work." },
+    { id: "mergequeue", name: "Merge Queue", blurb: "One check, one queue: main never sees two greens combine red." },
+    { id: "release", name: "Release & Rollout", blurb: "Built once, signed once, rolled out in traffic slices." },
+    { id: "observability", name: "Observability & Feedback", blurb: "Enforced again at the moment it matters, then reported back." }
+  ];
+
+  var nodes = [
+    { id: "webhook", lane: "trigger", title: "Webhook Receiver", badge: null, t: 0, cost: 0.00002,
+      blurb: "Confirms this event is really from GitHub before anything trusts it.",
+      detail: "GitHub sends a webhook on every push, pull request update, and review. A lightweight receiver checks the cryptographic signature GitHub attaches to the payload, drops duplicate deliveries, and puts a validated event on the intake queue in under 50ms. Nothing downstream ever talks to GitHub directly — everything reads from here." },
+    { id: "commitsig", lane: "trigger", title: "Commit Signature Verification", badge: "sec", t: 2, cost: 0.00001,
+      blurb: "Rejects unsigned commits before a single job is scheduled.",
+      detail: "Every commit must carry a signature GitHub can mark as verified, checked the moment the webhook lands, not after the fact. An unverified commit never reaches a runner — the audit trail for who wrote this starts at the first byte, not at merge time." },
+    { id: "classifier", lane: "trigger", title: "Change-Impact Classifier", badge: "ai", t: 5, cost: 0.00015,
+      blurb: "Maps the diff onto the dependency graph before deciding what to run.",
+      detail: "AI touchpoint — trained on the repository's dependency graph plus historical co-change data, this model predicts which of the roughly 640 packages are actually reachable from this diff. A one-line fix to a shared utility stops triggering a full-repository rebuild; a change to a core package doesn't slip through under-tested because it \"looked small\"." },
+
+    { id: "lint", lane: "fastfeedback", title: "Lint & Code Scanning", badge: null, t: 20, cost: 0.00040,
+      blurb: "Style, type, and correctness checks, parallelized per file.",
+      detail: "Starts the moment the event lands, independent of the build. Findings from the linters and from GitHub's code scanning post as inline annotations on the pull request at the exact line — not a log dump someone has to go spelunking through to find the one thing that matters." },
+    { id: "secretscan", lane: "fastfeedback", title: "Secret Scanning & Dependency Alerts", badge: "sec", t: 26, cost: 0.00035,
+      blurb: "Scans only the diff for live credentials and newly-introduced vulnerabilities.",
+      detail: "GitHub's secret scanning checks the diff for live credentials, and a dependency alert checks just the packages this diff adds or bumps against their known vulnerability records — not a slow whole-tree sweep on every push. A live credential or a critical, fixable vulnerability blocks the required check outright; anything softer opens a tracked alert with an owner and a deadline instead of silently passing." },
+    { id: "unit", lane: "fastfeedback", title: "Unit Test Shard Runner", badge: null, t: 75, cost: 0.00180,
+      blurb: "Runs only the tests the impact classifier marked as reachable.",
+      detail: "Sharded across whatever runner capacity is free right now, so wall-clock time for this stage stays roughly flat as the codebase grows — it's bounded by the reachable slice of tests, not the whole suite." },
+    { id: "review", lane: "fastfeedback", title: "AI Code Review", badge: "ai", t: 80, cost: 0.00060,
+      blurb: "Drafts inline comments before a human opens the diff.",
+      detail: "AI touchpoint — an automated review pass over the diff flags likely null-deref bugs, missing edge-case tests, and style drift as suggested-change comments on the pull request itself. This narrows what a human has to read; it does not replace a human's review. See Required Reviewer Approval below." },
+    { id: "humanreview", lane: "fastfeedback", title: "Required Reviewer Approval", badge: null, t: 85, cost: 0.00000,
+      blurb: "A human maintainer still has to approve before this moves on.",
+      detail: "The repository's code owners file resolves which team or person owns the paths this diff touches, and at least one of them has to submit an approving human review. This is enforced separately from the AI code review pass above — the automation narrows what the reviewer has to read and catches the obvious issues first, but a person's sign-off is still required and cannot be skipped." },
+    { id: "flaky", lane: "fastfeedback", title: "Flaky-Test Quarantine", badge: "ai", t: 95, cost: 0.00020,
+      blurb: "Pulls statistically unstable tests out of the blocking path automatically.",
+      detail: "AI touchpoint — a rolling model of each test's pass/fail history flags flaky tests and quarantines them out of the merge-blocking path, without deleting the coverage. They keep running and get tracked; the owning team is paged once a confidence threshold is crossed — instead of the whole organization quietly losing trust in a red build." },
+
+    { id: "scheduler", lane: "scaled", title: "Job Scheduler", badge: null, t: 100, cost: 0.00005,
+      blurb: "Bin-packs jobs onto partially-filled nodes instead of always requesting fresh ones.",
+      detail: "Orders queued jobs by priority — pull-request-gating work ahead of nightly batch jobs — and packs small jobs onto nodes that already have spare capacity rather than provisioning a new one per job. Fleet utilization stays high instead of paying for headroom nobody's using." },
+    { id: "runners", lane: "scaled", title: "Self-Hosted Runner Fleet", badge: null, t: 105, cost: 0.00120,
+      blurb: "Autoscaling, and priced like it — spot capacity by default.",
+      detail: "Self-hosted GitHub Actions runners, provisioned on Kubernetes as an autoscaling runner set that defaults to spot capacity, falling back to on-demand only when spot is reclaimed mid-job. The fleet scales toward zero at three in the morning and toward thousands of ephemeral, single-job runners at peak push hours — cost tracks actual queue depth, not a provisioned baseline sized for the worst hour of the week." },
+    { id: "cache", lane: "scaled", title: "Remote Build Cache", badge: null, t: 115, cost: 0.00010,
+      blurb: "Content-addressed, shared across every runner in the fleet.",
+      detail: "Build outputs are keyed by input hash and shared fleet-wide, well beyond the size limit of GitHub's built-in Actions cache, so a package nobody touched is never rebuilt twice on two different runners. This is the difference between a full clean build and the actual default experience." },
+    { id: "testselect", lane: "scaled", title: "Test Impact Selector", badge: "ai", t: 125, cost: 0.00040,
+      blurb: "Ranks regression tests by how likely they are to catch this diff's bug.",
+      detail: "AI touchpoint — instead of the full regression suite on every build, a model ranks tests by historical likelihood of catching a regression in this diff's changed files. The top slice runs on the critical path; the rest runs asynchronously. Full coverage still happens — it's just not what the developer is sitting there waiting on." },
+    { id: "sbom", lane: "scaled", title: "Software Bill of Materials Export", badge: "sec", t: 300, cost: 0.00025,
+      blurb: "Documents everything in the built artifact, not just the source tree.",
+      detail: "Every build exports a software bill of materials from the dependency graph, keyed to the exact artifact hash — including anything pulled in during the build, not just what's declared in the manifest. It ships alongside the artifact, so \"what's actually running in production\" is a query against this, not a fire-drill audit." },
+
+    { id: "unifiedcheck", lane: "mergequeue", title: "Required Status Check", badge: null, t: 310, cost: 0.00000,
+      blurb: "Everything above rolls into exactly one required status.",
+      detail: "A single job depends on every fast-feedback and scaled-build job before it — lint, tests, both scans, the reviewer approval, both AI passes — and reports one combined result. That combined job is the only status the branch ruleset actually requires. A developer never reads forty separate check names to know if they're blocked; a failure links straight through to the one job that's actually failing." },
+    { id: "mergequeuecontroller", lane: "mergequeue", title: "Merge Queue", badge: null, t: 390, cost: 0.00010,
+      blurb: "Re-tests each pull request against the current tip of the main branch before landing.",
+      detail: "GitHub's merge queue re-runs required checks against a pull request merged with the current tip of the main branch, one at a time — so two individually passing pull requests can't combine into a broken main branch." },
+    { id: "policygate", lane: "mergequeue", title: "Ruleset Policy Gate", badge: "sec", t: 396, cost: 0.00002,
+      blurb: "The review rules live in repository configuration, not a settings page click-through.",
+      detail: "Before a pull request enters the merge queue, the repository's ruleset evaluates it against rules stored as configuration: required approvals resolved from the code owners file, no self-merge, no direct pushes to protected paths. The rules are version-controlled and applied identically to everyone with push access, including whoever wrote them." },
+    { id: "riskscore", lane: "mergequeue", title: "Merge Risk Scorer", badge: "ai", t: 405, cost: 0.00015,
+      blurb: "Ranks queue order by predicted blast radius, not arrival time.",
+      detail: "AI touchpoint — scores each queued pull request on diff size, blast radius, and historical incident correlation for the files it touches. A one-line documentation fix doesn't sit behind a risky infrastructure change in a strictly serial queue; low-risk merges get prioritized through." },
+
+    { id: "artifactbuild", lane: "release", title: "Artifact & Image Build", badge: null, t: 470, cost: 0.00090,
+      blurb: "Built exactly once from the merged commit.",
+      detail: "The merged commit is built once by an automated workflow and pushed to the GitHub Container Registry. Every later rollout stage refers back to this exact artifact by hash — nothing is rebuilt between here and production, so what was tested is provably what ships." },
+    { id: "provenance", lane: "release", title: "Build Provenance Attestation", badge: "sec", t: 478, cost: 0.00008,
+      blurb: "The artifact is signed and stamped with where it actually came from.",
+      detail: "GitHub's artifact attestations sign the build and record a provenance attestation naming the exact source commit, workflow run, and builder identity that produced it. Nothing downstream trusts an artifact it can't verify against this attestation." },
+    { id: "rollout", lane: "release", title: "Progressive Rollout Controller", badge: null, t: 510, cost: 0.00030,
+      blurb: "Ships in traffic slices, not in one shot.",
+      detail: "Moves the new artifact through fixed traffic steps — one percent, then ten, then fifty, then a hundred — using a GitHub environment for each stage, gated by its own required reviewers and wait timer, alongside the Canary Health Analyzer's live signal before advancing to the next." },
+    { id: "canary", lane: "release", title: "Canary Health Analyzer", badge: "ai", t: 900, cost: 0.00050,
+      blurb: "Watches live metrics against a learned baseline, not a static threshold.",
+      detail: "AI touchpoint — compares canary error rate, latency, and resource metrics against a learned baseline for that specific service, rather than a fixed threshold, and can trigger an automatic rollback within seconds of a genuine anomaly instead of waiting for someone to notice a dashboard." },
+
+    { id: "admission", lane: "observability", title: "Admission Policy Enforcement", badge: "sec", t: 905, cost: 0.00003,
+      blurb: "Checks the signature again, at the moment the image tries to run.",
+      detail: "The cluster's admission controller checks the image's signature and its build provenance attestation at every pod start, not just at deploy time on trust. An image that's unsigned, unattested, or fails the vulnerability policy from its software bill of materials is refused a scheduling slot — full stop, no exceptions queue." },
+    { id: "dashboard", lane: "observability", title: "Pipeline Metrics Dashboard", badge: null, t: 1140, cost: 0.00002,
+      blurb: "The operational read on the system, not any one run.",
+      detail: "Build times, queue depth, failure rates, fleet utilization, spot-eviction rate. This is what the platform team watches to know if the fleet is keeping up — not something any individual developer needs to open." },
+    { id: "triage", lane: "observability", title: "Failure Triage Bot", badge: "ai", t: 1145, cost: 0.00025,
+      blurb: "Suggests a root cause the moment a build goes red.",
+      detail: "AI touchpoint — clusters a new failure's stack trace and logs against a history of past incidents, then posts a likely root cause and a probable owning team directly on the pull request or in the on-call channel. This run stayed green, so the bot stays on standby — but it's evaluating every failure that does happen, not just the ones a human has time to dig into." },
+    { id: "digest", lane: "observability", title: "Smoke Signal", badge: "ai", t: 1150, cost: 0.00010,
+      blurb: "A plain-language pulse on the week, not a dashboard nobody opens.",
+      detail: "AI touchpoint — auto-generates a short, plain-language summary of what shipped, what broke, and which tests are newly flaky, so a team gets a weekly read on pipeline health without anyone digging through dashboards to compile it by hand." }
+  ];
+
+  var flowEl = document.getElementById("flow");
+  var traceEl = document.getElementById("trace");
+  var detailEl = document.getElementById("detail");
+  var toggleBtn = document.getElementById("filter-toggle");
+  var runBtn = document.getElementById("run-sim");
+  var progressFill = document.getElementById("progress-fill");
+  var roStatus = document.getElementById("ro-status");
+  var roElapsed = document.getElementById("ro-elapsed");
+  var roCost = document.getElementById("ro-cost");
+  var roGates = document.getElementById("ro-gates");
+  var aiOnly = false;
+  var simRunning = false;
+  var simTimers = [];
+
+  var totalT = nodes[nodes.length - 1].t;
+  var totalGates = nodes.filter(function (n) { return n.badge === "sec"; }).length;
+
+  function fmtTime(sec) {
+    var m = Math.floor(sec / 60);
+    var s = Math.round(sec % 60);
+    if (s === 60) { m += 1; s = 0; }
+    return m + ":" + (s < 10 ? "0" : "") + s;
+  }
+  function fmtCost(v) { return "$" + v.toFixed(5); }
+
+  document.getElementById("dora-leadtime").textContent = fmtTime(totalT);
+
+  function el(tag, cls, text) {
+    var e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text !== undefined) e.textContent = text;
+    return e;
+  }
+
+  lanes.forEach(function (lane) {
+    var laneEl = el("div", "lane");
+    laneEl.dataset.lane = lane.id;
+
+    var header = el("div", "lane-header");
+    header.appendChild(el("p", "lane-name", lane.name));
+    header.appendChild(el("p", "lane-blurb", lane.blurb));
+    laneEl.appendChild(header);
+
+    var nodesWrap = el("div", "lane-nodes");
+    nodes.filter(function (n) { return n.lane === lane.id; }).forEach(function (n) {
+      var btn = el("button", "node" + (n.badge ? " " + n.badge : ""));
+      btn.type = "button";
+      btn.dataset.id = n.id;
+      var titleRow = el("span", "node-title");
+      titleRow.appendChild(document.createTextNode(n.title));
+      if (n.badge === "ai") titleRow.appendChild(el("span", "badge ai", "AI"));
+      if (n.badge === "sec") titleRow.appendChild(el("span", "badge sec", "SEC"));
+      btn.appendChild(titleRow);
+      btn.appendChild(el("span", "node-blurb", n.blurb));
+      btn.addEventListener("click", function () { selectNode(n.id); });
+      nodesWrap.appendChild(btn);
+    });
+    laneEl.appendChild(nodesWrap);
+    flowEl.appendChild(laneEl);
+  });
+
+  nodes.forEach(function (n) {
+    var chip = el("div", "chip" + (n.badge === "sec" ? " sec" : ""));
+    chip.id = "chip-" + n.id;
+    var statusRow = el("span", "chip-status");
+    statusRow.appendChild(el("span", "dot"));
+    statusRow.appendChild(document.createTextNode("pending"));
+    chip.appendChild(statusRow);
+    chip.appendChild(el("span", "chip-label", n.title));
+    chip.appendChild(el("span", "chip-time", fmtTime(n.t)));
+    traceEl.appendChild(chip);
+    if (n !== nodes[nodes.length - 1]) traceEl.appendChild(el("span", "trace-arrow", "→"));
+  });
+
+  function selectNode(id) {
+    var n = nodes.filter(function (x) { return x.id === id; })[0];
+    var lane = lanes.filter(function (x) { return x.id === n.lane; })[0];
+
+    document.querySelectorAll(".node").forEach(function (b) {
+      b.classList.toggle("selected", b.dataset.id === id);
+    });
+
+    detailEl.innerHTML = "";
+    var kindLabel = n.badge === "ai" ? "AI touchpoint" : n.badge === "sec" ? "Security gate" : "System component";
+    detailEl.appendChild(el("span", "detail-kind" + (n.badge ? " " + n.badge : ""), kindLabel));
+    detailEl.appendChild(el("h3", "detail-title", n.title));
+    detailEl.appendChild(el("p", "detail-lane", lane.name));
+    detailEl.appendChild(el("p", "detail-body", n.detail));
+  }
+
+  toggleBtn.addEventListener("click", function () {
+    aiOnly = !aiOnly;
+    toggleBtn.classList.toggle("active", aiOnly);
+    toggleBtn.setAttribute("aria-pressed", String(aiOnly));
+    toggleBtn.textContent = aiOnly ? "Showing AI touchpoints only" : "Show AI touchpoints only";
+    document.querySelectorAll(".node").forEach(function (b) {
+      var isAi = b.classList.contains("ai");
+      b.classList.toggle("dimmed", aiOnly && !isAi);
+    });
+  });
+
+  var reduceMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  function resetSim() {
+    simTimers.forEach(function (t) { clearTimeout(t); });
+    simTimers = [];
+    document.querySelectorAll(".chip").forEach(function (c) {
+      c.classList.remove("active", "done");
+      var status = c.querySelector(".chip-status");
+      status.lastChild.textContent = "pending";
+    });
+    document.querySelectorAll(".node").forEach(function (b) { b.classList.remove("sim-active"); });
+    progressFill.style.width = "0%";
+    roStatus.textContent = "Idle";
+    roStatus.classList.remove("status-live");
+    roElapsed.textContent = "0:00";
+    roCost.textContent = fmtCost(0);
+    roGates.textContent = "0 / " + totalGates;
+  }
+
+  function runSim() {
+    if (simRunning) return;
+    simRunning = true;
+    runBtn.disabled = true;
+    runBtn.textContent = "Running…";
+    resetSim();
+    roStatus.textContent = "In flight";
+    roStatus.classList.add("status-live");
+
+    var playbackMs = reduceMotion ? 0 : 6500;
+    var cumulativeCost = 0;
+    var gatesPassed = 0;
+
+    nodes.forEach(function (n, i) {
+      var delay = totalT === 0 ? 0 : (n.t / totalT) * playbackMs;
+      var timer = setTimeout(function () {
+        var chip = document.getElementById("chip-" + n.id);
+        var nodeBtn = document.querySelector('.node[data-id="' + n.id + '"]');
+        chip.classList.add("active");
+        if (nodeBtn) nodeBtn.classList.add("sim-active");
+
+        cumulativeCost += n.cost;
+        if (n.badge === "sec") gatesPassed += 1;
+        roElapsed.textContent = fmtTime(n.t);
+        roCost.textContent = fmtCost(cumulativeCost);
+        roGates.textContent = gatesPassed + " / " + totalGates;
+        progressFill.style.width = Math.round((n.t / totalT) * 100) + "%";
+
+        var settle = reduceMotion ? 0 : 260;
+        var settleTimer = setTimeout(function () {
+          chip.classList.remove("active");
+          chip.classList.add("done");
+          var status = chip.querySelector(".chip-status");
+          status.lastChild.textContent = n.badge === "sec" ? "verified" : "passed";
+          if (nodeBtn) nodeBtn.classList.remove("sim-active");
+        }, settle);
+        simTimers.push(settleTimer);
+
+        if (i === nodes.length - 1) {
+          var doneTimer = setTimeout(function () {
+            roStatus.textContent = "Live in production";
+            simRunning = false;
+            runBtn.disabled = false;
+            runBtn.textContent = "Run again";
+          }, settle + 40);
+          simTimers.push(doneTimer);
+        }
+      }, delay);
+      simTimers.push(timer);
+    });
+  }
+
+  resetSim();
+  runBtn.addEventListener("click", runSim);
+})();
+</script>
+</body>
+</html>
